@@ -8,6 +8,7 @@ import {
   formatOffsetMinutes,
   getCompassDirection,
   normalizeLongitude,
+  parseCoordinateInput,
   wrapDayMs,
 } from './solar.js';
 
@@ -22,7 +23,13 @@ const DEFAULT_STATE = {
   timeMode: 'LMT',
 };
 
-const appState = loadSettings();
+const appState = {
+  ...loadSettings(),
+  simEnabled: false,
+  simDateStr: toUtcDateString(new Date()),
+  simMinutes: getUtcMinutesOfDay(new Date()),
+};
+
 let deferredInstallPrompt = null;
 
 const el = {
@@ -31,6 +38,9 @@ const el = {
   installBtn: document.getElementById('install-btn'),
 
   dialTicks: document.getElementById('dial-ticks'),
+  dialAstroArc: document.getElementById('dial-astro-arc'),
+  dialNauticalArc: document.getElementById('dial-nautical-arc'),
+  dialCivilArc: document.getElementById('dial-civil-arc'),
   dialDaylightArc: document.getElementById('dial-daylight-arc'),
   dialFullDay: document.getElementById('dial-full-day'),
   dialSunriseLine: document.getElementById('dial-sunrise-line'),
@@ -50,6 +60,15 @@ const el = {
   readoutAst: document.getElementById('readout-ast'),
   readoutCivil: document.getElementById('readout-civil'),
   readoutUtc: document.getElementById('readout-utc'),
+
+  simActiveBadge: document.getElementById('sim-active-badge'),
+  simLiveBtn: document.getElementById('sim-live-btn'),
+  simSimBtn: document.getElementById('sim-sim-btn'),
+  simResetBtn: document.getElementById('sim-reset-btn'),
+  simDateInput: document.getElementById('sim-date-input'),
+  simTimeSlider: document.getElementById('sim-time-slider'),
+  simTimeReadout: document.getElementById('sim-time-readout'),
+  seasonBtns: document.querySelectorAll('[data-season]'),
 
   gpsBtn: document.getElementById('gps-btn'),
   presetSelect: document.getElementById('preset-select'),
@@ -72,7 +91,34 @@ const el = {
   metricDaylight: document.getElementById('metric-daylight'),
   metricPolarNote: document.getElementById('metric-polar-note'),
   metricModeLabels: document.querySelectorAll('.metric-time-mode'),
+
+  daylightProgress: document.getElementById('daylight-progress'),
+  daylightProgressBar: document.getElementById('daylight-progress-bar'),
+  twilightCivil: document.getElementById('twilight-civil'),
+  twilightNautical: document.getElementById('twilight-nautical'),
+  twilightAstro: document.getElementById('twilight-astro'),
+  twilightGolden: document.getElementById('twilight-golden'),
+  subsolarCoords: document.getElementById('subsolar-coords'),
+  subsolarDistance: document.getElementById('subsolar-distance'),
 };
+
+function toUtcDateString(date) {
+  const y = date.getUTCFullYear();
+  const m = String(date.getUTCMonth() + 1).padStart(2, '0');
+  const d = String(date.getUTCDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
+function getUtcMinutesOfDay(date) {
+  return date.getUTCHours() * 60 + date.getUTCMinutes();
+}
+
+function formatUtcMinutes(totalMinutes) {
+  const m = ((Math.round(totalMinutes) % 1440) + 1440) % 1440;
+  const hh = String(Math.floor(m / 60)).padStart(2, '0');
+  const mm = String(m % 60).padStart(2, '0');
+  return `${hh}:${mm} UTC`;
+}
 
 function loadSettings() {
   try {
@@ -91,10 +137,29 @@ function loadSettings() {
 
 function saveSettings() {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(appState));
+    localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify({
+        lat: appState.lat,
+        lon: appState.lon,
+        timeMode: appState.timeMode,
+      })
+    );
   } catch {
     // Ignore storage quota or private mode failures
   }
+}
+
+function getActiveInstant() {
+  if (!appState.simEnabled) return new Date();
+  const parts = appState.simDateStr.split('-').map(Number);
+  if (parts.length !== 3 || parts.some((n) => !Number.isFinite(n))) {
+    return new Date();
+  }
+  const [year, month, day] = parts;
+  const hours = Math.floor(appState.simMinutes / 60);
+  const minutes = appState.simMinutes % 60;
+  return new Date(Date.UTC(year, month - 1, day, hours, minutes, 0, 0));
 }
 
 function dialDegFromDayMs(dayMs) {
@@ -107,6 +172,23 @@ function polarToCartesian(degClockwiseFromTop, radius) {
     x: DIAL_CENTER + radius * Math.cos(rad),
     y: DIAL_CENTER + radius * Math.sin(rad),
   };
+}
+
+function buildSectorPath(riseMs, setMs, durationHours, state) {
+  if (state === 'always-below' || durationHours <= 0.01) return '';
+  if (state === 'always-above' || durationHours >= 23.99) {
+    const r = DIAL_RADIUS;
+    return `M ${DIAL_CENTER - r} ${DIAL_CENTER} A ${r} ${r} 0 1 0 ${DIAL_CENTER + r} ${DIAL_CENTER} A ${r} ${r} 0 1 0 ${DIAL_CENTER - r} ${DIAL_CENTER} Z`;
+  }
+
+  const riseDeg = dialDegFromDayMs(riseMs);
+  const setDeg = dialDegFromDayMs(setMs);
+  const spanDeg = (durationHours / 24) * 360;
+  const largeArc = spanDeg > 180 ? 1 : 0;
+
+  const pRise = polarToCartesian(riseDeg, DIAL_RADIUS);
+  const pSet = polarToCartesian(setDeg, DIAL_RADIUS);
+  return `M ${DIAL_CENTER} ${DIAL_CENTER} L ${pRise.x.toFixed(2)} ${pRise.y.toFixed(2)} A ${DIAL_RADIUS} ${DIAL_RADIUS} 0 ${largeArc} 1 ${pSet.x.toFixed(2)} ${pSet.y.toFixed(2)} Z`;
 }
 
 function buildDialTicks() {
@@ -172,6 +254,21 @@ function syncModeUI() {
   });
 }
 
+function syncSimulatorUI() {
+  const sim = appState.simEnabled;
+  el.simLiveBtn.classList.toggle('is-active', !sim);
+  el.simLiveBtn.setAttribute('aria-pressed', String(!sim));
+  el.simSimBtn.classList.toggle('is-active', sim);
+  el.simSimBtn.setAttribute('aria-pressed', String(sim));
+
+  el.simActiveBadge.textContent = sim ? 'Simulated Instant' : 'Live Clock';
+  el.simActiveBadge.classList.toggle('is-simulating', sim);
+
+  el.simDateInput.value = appState.simDateStr;
+  el.simTimeSlider.value = String(appState.simMinutes);
+  el.simTimeReadout.textContent = formatUtcMinutes(appState.simMinutes);
+}
+
 function syncCoordinateInputs(syncSelect = true) {
   el.latInput.value = Number(appState.lat.toFixed(4));
   el.lonInput.value = Number(appState.lon.toFixed(4));
@@ -205,6 +302,36 @@ function updateDial(solar) {
   const elevSign = solar.elevationDeg >= 0 ? '+' : '';
   el.dialCenterElevation.textContent = `${elevSign}${solar.elevationDeg.toFixed(1)}°`;
 
+  // Multi-band twilight sectors
+  const { astronomical, nautical, civil } = solar.twilight;
+  el.dialAstroArc.setAttribute(
+    'd',
+    buildSectorPath(
+      isLmt ? astronomical.riseLmtMs : astronomical.riseAstMs,
+      isLmt ? astronomical.setLmtMs : astronomical.setAstMs,
+      astronomical.durationHours,
+      astronomical.state
+    )
+  );
+  el.dialNauticalArc.setAttribute(
+    'd',
+    buildSectorPath(
+      isLmt ? nautical.riseLmtMs : nautical.riseAstMs,
+      isLmt ? nautical.setLmtMs : nautical.setAstMs,
+      nautical.durationHours,
+      nautical.state
+    )
+  );
+  el.dialCivilArc.setAttribute(
+    'd',
+    buildSectorPath(
+      isLmt ? civil.riseLmtMs : civil.riseAstMs,
+      isLmt ? civil.setLmtMs : civil.setAstMs,
+      civil.durationHours,
+      civil.state
+    )
+  );
+
   if (solar.polarState === 'midnight-sun') {
     el.dialDaylightArc.setAttribute('d', '');
     el.dialFullDay.hidden = false;
@@ -224,18 +351,14 @@ function updateDial(solar) {
   el.dialFullDay.hidden = true;
   const sunriseMs = isLmt ? solar.sunriseLmtMs : solar.sunriseAstMs;
   const sunsetMs = isLmt ? solar.sunsetLmtMs : solar.sunsetAstMs;
-  const sunriseDeg = dialDegFromDayMs(sunriseMs);
-  const sunsetDeg = dialDegFromDayMs(sunsetMs);
-  const spanDeg = (solar.daylightHours / 24) * 360;
-  const largeArc = spanDeg > 180 ? 1 : 0;
-
-  const pRise = polarToCartesian(sunriseDeg, DIAL_RADIUS);
-  const pSet = polarToCartesian(sunsetDeg, DIAL_RADIUS);
 
   el.dialDaylightArc.setAttribute(
     'd',
-    `M ${DIAL_CENTER} ${DIAL_CENTER} L ${pRise.x.toFixed(2)} ${pRise.y.toFixed(2)} A ${DIAL_RADIUS} ${DIAL_RADIUS} 0 ${largeArc} 1 ${pSet.x.toFixed(2)} ${pSet.y.toFixed(2)} Z`
+    buildSectorPath(sunriseMs, sunsetMs, solar.daylightHours, 'normal')
   );
+
+  const pRise = polarToCartesian(dialDegFromDayMs(sunriseMs), DIAL_RADIUS);
+  const pSet = polarToCartesian(dialDegFromDayMs(sunsetMs), DIAL_RADIUS);
 
   el.dialSunriseLine.setAttribute('opacity', '1');
   el.dialSunriseLine.setAttribute('x2', pRise.x.toFixed(2));
@@ -246,23 +369,42 @@ function updateDial(solar) {
   el.dialSunsetLine.setAttribute('y2', pSet.y.toFixed(2));
 }
 
+function formatCrossingPair(crossing, isLmt) {
+  if (crossing.state === 'always-above') return 'Continuous';
+  if (crossing.state === 'always-below') return 'None';
+  const riseMs = isLmt ? crossing.riseLmtMs : crossing.riseAstMs;
+  const setMs = isLmt ? crossing.setLmtMs : crossing.setAstMs;
+  return `${formatDayMs(riseMs)} / ${formatDayMs(setMs)}`;
+}
+
 function renderTick() {
-  const now = new Date();
+  const now = getActiveInstant();
   const solar = calculateSolarState(now, appState.lat, appState.lon);
   const isLmt = appState.timeMode === 'LMT';
 
+  if (!appState.simEnabled) {
+    const liveMinutes = getUtcMinutesOfDay(now);
+    const liveDateStr = toUtcDateString(now);
+    if (el.simDateInput.value !== liveDateStr) {
+      appState.simDateStr = liveDateStr;
+      el.simDateInput.value = liveDateStr;
+    }
+    if (Number(el.simTimeSlider.value) !== liveMinutes) {
+      appState.simMinutes = liveMinutes;
+      el.simTimeSlider.value = String(liveMinutes);
+      el.simTimeReadout.textContent = formatUtcMinutes(liveMinutes);
+    }
+  }
+
   // Primary & secondary digital clocks
-  el.primaryTime.textContent = formatDayMs(isLmt ? solar.lmtDayMs : solar.astDayMs, true);
+  el.primaryTime.textContent = formatDayMs(isLmt ? solar.lmtDayMs : solar.astDayMs, !appState.simEnabled);
   el.readoutLmt.textContent = formatDayMs(solar.lmtDayMs);
   el.readoutAst.textContent = formatDayMs(solar.astDayMs);
   el.readoutCivil.textContent = formatDayMs(solar.civilDayMs);
   el.readoutUtc.textContent = formatDayMs(solar.utcDayMs);
 
-  // Day/Night badge
-  let phaseLabel = solar.isDaylight ? 'Daylight' : 'Night';
-  if (solar.polarState === 'midnight-sun') phaseLabel = 'Midnight Sun';
-  if (solar.polarState === 'polar-night') phaseLabel = 'Polar Night';
-  el.phaseBadge.textContent = phaseLabel;
+  // Sky illumination badge
+  el.phaseBadge.textContent = solar.skyPhase;
   el.phaseBadge.classList.toggle('is-night', !solar.isDaylight);
 
   // Telemetry cards
@@ -297,6 +439,29 @@ function renderTick() {
 
   el.metricDaylight.textContent = formatDurationHours(solar.daylightHours);
 
+  // Twilight & Subsolar Zenith Schedule
+  el.twilightCivil.textContent = formatCrossingPair(solar.twilight.civil, isLmt);
+  el.twilightNautical.textContent = formatCrossingPair(solar.twilight.nautical, isLmt);
+  el.twilightAstro.textContent = formatCrossingPair(solar.twilight.astronomical, isLmt);
+
+  const gh = solar.twilight.goldenHour;
+  if (solar.polarState === 'polar-night') {
+    el.twilightGolden.textContent = 'None';
+  } else if (gh.state === 'always-below') {
+    el.twilightGolden.textContent = 'All Daylight (< +6°)';
+  } else if (gh.state === 'always-above') {
+    el.twilightGolden.textContent = 'None (> +6°)';
+  } else {
+    el.twilightGolden.textContent = formatCrossingPair(gh, isLmt);
+  }
+
+  el.subsolarCoords.textContent = `${formatDMS(solar.subsolarLat, true)} · ${formatDMS(solar.subsolarLon, false)}`;
+  el.subsolarDistance.textContent = `${Math.round(solar.subsolarDistanceKm).toLocaleString('en-US')} km`;
+
+  const pctText = `${solar.dayProgressPercent.toFixed(1)}%`;
+  el.daylightProgress.textContent = pctText;
+  el.daylightProgressBar.style.width = pctText;
+
   updateDial(solar);
   requestAnimationFrame(renderTick);
 }
@@ -312,23 +477,20 @@ function applyCoordinates(lat, lon, sourceMessage = '') {
 }
 
 function handleManualInput(commit) {
-  const parsedLat = Number.parseFloat(el.latInput.value);
-  const parsedLon = Number.parseFloat(el.lonInput.value);
+  const latParsed = parseCoordinateInput(el.latInput.value, true);
+  const lonParsed = parseCoordinateInput(el.lonInput.value, false);
 
-  if (!Number.isFinite(parsedLat) || !Number.isFinite(parsedLon)) {
-    if (commit) syncCoordinateInputs(true);
+  if (!latParsed.valid || !lonParsed.valid) {
+    if (commit) {
+      setGeoStatus('Enter valid Latitude (-90..+90 or DMS) and Longitude (-180..+180 or DMS).', 'error');
+      syncCoordinateInputs(true);
+    }
     return;
   }
 
-  if (parsedLat < -90 || parsedLat > 90 || parsedLon < -180 || parsedLon > 180) {
-    setGeoStatus('Latitude must be between -90° and +90°; Longitude between -180° and +180°.', 'error');
-    if (!commit) return;
-  } else {
-    setGeoStatus('');
-  }
-
-  appState.lat = clamp(parsedLat, -90, 90);
-  appState.lon = normalizeLongitude(parsedLon);
+  setGeoStatus('');
+  appState.lat = clamp(latParsed.value, -90, 90);
+  appState.lon = normalizeLongitude(lonParsed.value);
   saveSettings();
 
   if (commit) {
@@ -410,6 +572,28 @@ function initPwa() {
   });
 }
 
+function setSeasonPreset(seasonKey) {
+  const year = new Date().getUTCFullYear();
+  const dates = {
+    'mar-eq': `${year}-03-20`,
+    'jun-sol': `${year}-06-21`,
+    'sep-eq': `${year}-09-22`,
+    'dec-sol': `${year}-12-21`,
+  };
+  if (!dates[seasonKey]) return;
+  appState.simEnabled = true;
+  appState.simDateStr = dates[seasonKey];
+  syncSimulatorUI();
+}
+
+function resetToLive() {
+  const now = new Date();
+  appState.simEnabled = false;
+  appState.simDateStr = toUtcDateString(now);
+  appState.simMinutes = getUtcMinutesOfDay(now);
+  syncSimulatorUI();
+}
+
 function bindEvents() {
   el.modeLmtBtn.addEventListener('click', () => {
     appState.timeMode = 'LMT';
@@ -421,6 +605,31 @@ function bindEvents() {
     appState.timeMode = 'AST';
     saveSettings();
     syncModeUI();
+  });
+
+  el.simLiveBtn.addEventListener('click', resetToLive);
+  el.simResetBtn.addEventListener('click', resetToLive);
+
+  el.simSimBtn.addEventListener('click', () => {
+    appState.simEnabled = true;
+    syncSimulatorUI();
+  });
+
+  el.simDateInput.addEventListener('change', () => {
+    if (!el.simDateInput.value) return;
+    appState.simEnabled = true;
+    appState.simDateStr = el.simDateInput.value;
+    syncSimulatorUI();
+  });
+
+  el.simTimeSlider.addEventListener('input', () => {
+    appState.simEnabled = true;
+    appState.simMinutes = Number(el.simTimeSlider.value);
+    syncSimulatorUI();
+  });
+
+  el.seasonBtns.forEach((btn) => {
+    btn.addEventListener('click', () => setSeasonPreset(btn.dataset.season));
   });
 
   el.presetSelect.addEventListener('change', () => {
@@ -442,6 +651,7 @@ function bindEvents() {
 function init() {
   buildDialTicks();
   syncModeUI();
+  syncSimulatorUI();
   syncCoordinateInputs(true);
   bindEvents();
   initPwa();

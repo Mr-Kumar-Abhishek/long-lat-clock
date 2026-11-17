@@ -450,6 +450,170 @@ body {
   color: var(--text-secondary);
 }
 
+/* Dial Legend */
+.dial-legend {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.7rem;
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+}
+
+.legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.legend-swatch {
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+}
+
+.swatch-day {
+  background: rgba(251, 191, 36, 0.55);
+  border: 1px solid rgba(251, 191, 36, 0.8);
+}
+
+.swatch-civil {
+  background: rgba(245, 158, 11, 0.35);
+}
+
+.swatch-naut {
+  background: rgba(56, 189, 248, 0.35);
+}
+
+.swatch-astro {
+  background: rgba(56, 189, 248, 0.16);
+}
+
+/* Simulator Bar */
+.simulator-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.simulator-title-row,
+.simulator-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.sim-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.22rem 0.65rem;
+  border-radius: 999px;
+  font-size: 0.74rem;
+  font-weight: 600;
+  background: rgba(52, 211, 153, 0.14);
+  color: var(--accent-emerald);
+  border: 1px solid rgba(52, 211, 153, 0.35);
+}
+
+.sim-badge.is-simulating {
+  background: rgba(245, 158, 11, 0.18);
+  color: var(--accent-sun-bright);
+  border-color: rgba(245, 158, 11, 0.45);
+}
+
+.simulator-controls {
+  display: grid;
+  grid-template-columns: 180px 1fr auto;
+  gap: 1rem;
+  align-items: end;
+}
+
+.slider-label-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.5rem;
+}
+
+.sim-time-readout {
+  font-size: 0.84rem;
+  color: var(--accent-sun-bright);
+  font-weight: 600;
+}
+
+input[type="range"] {
+  accent-color: var(--accent-sun);
+  cursor: pointer;
+  padding: 0.35rem 0;
+}
+
+.season-presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.btn-chip {
+  padding: 0.45rem 0.7rem;
+  font-size: 0.78rem;
+}
+
+/* Twilight & Subsolar Schedule */
+.progress-summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.progress-pct {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--accent-sun-bright);
+}
+
+.progress-track {
+  width: 100%;
+  height: 8px;
+  border-radius: 999px;
+  background: rgba(2, 6, 23, 0.75);
+  border: 1px solid var(--border-subtle);
+  overflow: hidden;
+  margin-bottom: 1.1rem;
+}
+
+.progress-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--accent-sky), var(--accent-sun));
+  transition: width 150ms linear;
+}
+
+.twilight-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.85rem;
+}
+
+.twilight-item {
+  background: var(--bg-card-elevated);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 0.85rem 0.95rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.22rem;
+}
+
+.twilight-value {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
 /* Footer */
 .app-footer {
   max-width: 1120px;
@@ -488,11 +652,13 @@ body {
   }
 
   .secondary-clocks,
-  .telemetry-grid {
+  .telemetry-grid,
+  .twilight-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .controls-grid {
+  .controls-grid,
+  .simulator-controls {
     grid-template-columns: 1fr;
   }
 }
@@ -503,7 +669,8 @@ body {
   }
 
   .secondary-clocks,
-  .telemetry-grid {
+  .telemetry-grid,
+  .twilight-grid {
     grid-template-columns: 1fr;
   }
 

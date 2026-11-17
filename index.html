@@ -59,7 +59,10 @@
           <!-- Night backdrop circle -->
           <circle cx="180" cy="180" r="136" fill="url(#dialNightGrad)" stroke="rgba(148,163,184,0.22)" stroke-width="2" />
 
-          <!-- Latitude-driven daylight sector -->
+          <!-- Latitude-driven twilight & daylight sectors -->
+          <path id="dial-astro-arc" d="" fill="rgba(56, 189, 248, 0.08)" />
+          <path id="dial-nautical-arc" d="" fill="rgba(56, 189, 248, 0.14)" />
+          <path id="dial-civil-arc" d="" fill="rgba(245, 158, 11, 0.15)" />
           <path id="dial-daylight-arc" d="" fill="url(#dialDayGrad)" />
           <circle id="dial-full-day" cx="180" cy="180" r="136" fill="url(#dialDayGrad)" hidden />
 
@@ -93,7 +96,13 @@
           <text x="180" y="175" text-anchor="middle" fill="#94a3b8" font-size="9" font-weight="600" letter-spacing="0.06em">ALTITUDE</text>
           <text id="dial-center-elevation" x="180" y="192" text-anchor="middle" fill="#f8fafc" font-size="13" font-weight="700" font-family="ui-monospace, monospace">+0.0°</text>
         </svg>
-        <p class="dial-caption">24h Solar Dial · Daylight arc scales with latitude &amp; season</p>
+        <div class="dial-legend" aria-label="Dial color legend">
+          <span class="legend-item"><span class="legend-swatch swatch-day"></span>Daylight</span>
+          <span class="legend-item"><span class="legend-swatch swatch-civil"></span>Civil</span>
+          <span class="legend-item"><span class="legend-swatch swatch-naut"></span>Nautical</span>
+          <span class="legend-item"><span class="legend-swatch swatch-astro"></span>Astro</span>
+        </div>
+        <p class="dial-caption">24h Solar Dial · Daylight &amp; twilight arcs scale with latitude &amp; season</p>
       </div>
 
       <div class="clock-readout-col">
@@ -136,6 +145,45 @@
       </div>
     </section>
 
+    <!-- Time-Travel / Solar Simulator Toolbar -->
+    <section class="panel simulator-bar" aria-label="Time-Travel Solar Simulator">
+      <div class="simulator-header">
+        <div class="simulator-title-row">
+          <h2 class="section-title">Solar Time-Travel Simulator</h2>
+          <span id="sim-active-badge" class="sim-badge">Live Clock</span>
+        </div>
+        <div class="simulator-actions">
+          <div class="mode-toggle" role="group" aria-label="Clock Source">
+            <button id="sim-live-btn" class="mode-btn is-active" type="button" aria-pressed="true">Live</button>
+            <button id="sim-sim-btn" class="mode-btn" type="button" aria-pressed="false">Simulate</button>
+          </div>
+          <button id="sim-reset-btn" class="btn" type="button">Reset to Live</button>
+        </div>
+      </div>
+
+      <div class="simulator-controls">
+        <div class="field">
+          <label for="sim-date-input">UTC Date</label>
+          <input id="sim-date-input" type="date" />
+        </div>
+
+        <div class="field simulator-slider-field">
+          <div class="slider-label-row">
+            <label for="sim-time-slider">UTC Time Scrubber</label>
+            <span id="sim-time-readout" class="tabular sim-time-readout">12:00 UTC</span>
+          </div>
+          <input id="sim-time-slider" type="range" min="0" max="1439" step="1" value="720" />
+        </div>
+
+        <div class="season-presets" role="group" aria-label="Solstice and Equinox Presets">
+          <button class="btn btn-chip" type="button" data-season="mar-eq">Mar Equinox</button>
+          <button class="btn btn-chip" type="button" data-season="jun-sol">Jun Solstice</button>
+          <button class="btn btn-chip" type="button" data-season="sep-eq">Sep Equinox</button>
+          <button class="btn btn-chip" type="button" data-season="dec-sol">Dec Solstice</button>
+        </div>
+      </div>
+    </section>
+
     <!-- Coordinate Controls -->
     <section class="panel controls-panel" aria-label="Observer Coordinate Controls">
       <div class="controls-header">
@@ -161,18 +209,18 @@
             <option value="-33.8688,151.2093">Sydney, Australia (33.87° S, 151.21° E)</option>
             <option value="-54.8019,-68.3030">Ushuaia, Argentina (54.80° S, 68.30° W)</option>
           </select>
-          <span class="field-hint">Select a reference meridian or enter coordinates manually</span>
+          <span class="field-hint">Select a reference meridian or enter decimal / DMS coordinates</span>
         </div>
 
         <div class="field">
-          <label for="lat-input">Latitude (&phi;, -90 to +90)</label>
-          <input id="lat-input" type="number" step="0.0001" min="-90" max="90" value="28.6139" />
+          <label for="lat-input">Latitude (&phi;, -90 to +90 or DMS)</label>
+          <input id="lat-input" type="text" inputmode="decimal" value="28.6139" placeholder="28.6139 or 28° 36' 50&quot; N" />
           <span id="lat-dms-hint" class="field-hint tabular">--</span>
         </div>
 
         <div class="field">
-          <label for="lon-input">Longitude (&lambda;, -180 to +180)</label>
-          <input id="lon-input" type="number" step="0.0001" min="-180" max="180" value="77.2090" />
+          <label for="lon-input">Longitude (&lambda;, -180 to +180 or DMS)</label>
+          <input id="lon-input" type="text" inputmode="decimal" value="77.2090" placeholder="77.2090 or 77° 12' 32&quot; E" />
           <span id="lon-dms-hint" class="field-hint tabular">--</span>
         </div>
       </div>
@@ -229,6 +277,59 @@
         <span id="metric-daylight" class="metric-value tabular">--</span>
         <span id="metric-polar-note" class="metric-sub">Normal diurnal cycle</span>
       </article>
+    </section>
+
+    <!-- Twilight & Subsolar Zenith Schedule -->
+    <section class="panel twilight-panel" aria-label="Twilight Schedule and Subsolar Zenith">
+      <div class="controls-header">
+        <h2 class="section-title">Twilight Schedule &amp; Subsolar Zenith</h2>
+        <div class="progress-summary">
+          <span class="metric-label">Daylight Progress</span>
+          <span id="daylight-progress" class="tabular progress-pct">0.0%</span>
+        </div>
+      </div>
+
+      <div class="progress-track" aria-hidden="true">
+        <div id="daylight-progress-bar" class="progress-fill" style="width: 0%"></div>
+      </div>
+
+      <div class="twilight-grid">
+        <div class="twilight-item">
+          <span class="metric-label">Civil Twilight (&minus;6°)</span>
+          <span id="twilight-civil" class="twilight-value tabular">--:--:-- / --:--:--</span>
+          <span class="metric-sub metric-time-mode">Local Mean Time</span>
+        </div>
+
+        <div class="twilight-item">
+          <span class="metric-label">Nautical Twilight (&minus;12°)</span>
+          <span id="twilight-nautical" class="twilight-value tabular">--:--:-- / --:--:--</span>
+          <span class="metric-sub metric-time-mode">Local Mean Time</span>
+        </div>
+
+        <div class="twilight-item">
+          <span class="metric-label">Astronomical (&minus;18°)</span>
+          <span id="twilight-astro" class="twilight-value tabular">--:--:-- / --:--:--</span>
+          <span class="metric-sub metric-time-mode">Local Mean Time</span>
+        </div>
+
+        <div class="twilight-item">
+          <span class="metric-label">Golden Hour (&minus;0.83°..+6°)</span>
+          <span id="twilight-golden" class="twilight-value tabular">--:--:-- / --:--:--</span>
+          <span class="metric-sub">Morning &amp; evening bounds</span>
+        </div>
+
+        <div class="twilight-item">
+          <span class="metric-label">Subsolar Zenith Point</span>
+          <span id="subsolar-coords" class="twilight-value tabular">--° · --°</span>
+          <span class="metric-sub">Direct 90° overhead Sun</span>
+        </div>
+
+        <div class="twilight-item">
+          <span class="metric-label">Distance to Subsolar Point</span>
+          <span id="subsolar-distance" class="twilight-value tabular">-- km</span>
+          <span class="metric-sub">Great-circle surface distance</span>
+        </div>
+      </div>
     </section>
   </main>
 
