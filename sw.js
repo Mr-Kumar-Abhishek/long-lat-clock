@@ -1,4 +1,4 @@
-const CACHE_NAME = 'geosolar-clock-v1';
+const CACHE_NAME = 'geosolar-clock-v2';
 
 const PRECACHE_ASSETS = [
   './',

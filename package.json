@@ -1,0 +1,11 @@
+{
+  "name": "long-lat-clock",
+  "version": "1.0.0",
+  "description": "Offline-capable Longitude & Latitude Based Astronomical Clock PWA",
+  "type": "module",
+  "scripts": {
+    "test": "node --test tests/solar.test.js"
+  },
+  "license": "MIT",
+  "author": "Abhishek Kumar"
+}
