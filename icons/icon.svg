@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="GeoSolar Clock Icon">
+  <defs>
+    <radialGradient id="skyGlow" cx="50%" cy="35%" r="65%">
+      <stop offset="0%" stop-color="#1d2d5c"/>
+      <stop offset="55%" stop-color="#0e1630"/>
+      <stop offset="100%" stop-color="#080c1a"/>
+    </radialGradient>
+    <radialGradient id="sunGlow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#fde68a"/>
+      <stop offset="45%" stop-color="#f59e0b"/>
+      <stop offset="100%" stop-color="#d97706" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="ringGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fbbf24"/>
+      <stop offset="100%" stop-color="#38bdf8"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="512" height="512" rx="112" fill="url(#skyGlow)"/>
+
+  <!-- Outer dial ring -->
+  <circle cx="256" cy="256" r="192" fill="none" stroke="url(#ringGrad)" stroke-width="10" opacity="0.85"/>
+  <circle cx="256" cy="256" r="160" fill="none" stroke="#334155" stroke-width="2" stroke-dasharray="6 10"/>
+
+  <!-- Latitude & Meridian grid inside globe -->
+  <ellipse cx="256" cy="256" rx="92" ry="192" fill="none" stroke="#64748b" stroke-width="3" opacity="0.45"/>
+  <ellipse cx="256" cy="256" rx="192" ry="72" fill="none" stroke="#64748b" stroke-width="3" opacity="0.45"/>
+  <line x1="256" y1="64" x2="256" y2="448" stroke="#64748b" stroke-width="3" opacity="0.45"/>
+  <line x1="64" y1="256" x2="448" y2="256" stroke="#38bdf8" stroke-width="4" opacity="0.7"/>
+
+  <!-- Solar hand pointing toward 14:30 solar angle -->
+  <line x1="256" y1="256" x2="352" y2="136" stroke="#fbbf24" stroke-width="12" stroke-linecap="round"/>
+
+  <!-- Sun orb on the dial -->
+  <circle cx="352" cy="136" r="44" fill="url(#sunGlow)"/>
+  <circle cx="352" cy="136" r="20" fill="#fde68a" stroke="#f59e0b" stroke-width="4"/>
+
+  <!-- Center pivot -->
+  <circle cx="256" cy="256" r="14" fill="#f8fafc" stroke="#f59e0b" stroke-width="5"/>
+</svg>
