@@ -614,6 +614,122 @@ input[type="range"] {
   color: var(--text-primary);
 }
 
+/* Bookmarks & Sharing */
+.bookmark-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  margin-top: 1rem;
+}
+
+.bookmark-bar input {
+  flex: 1 1 220px;
+  padding: 0.55rem 0.78rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-subtle);
+  background: rgba(2, 6, 23, 0.6);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  font-size: 0.88rem;
+  outline: none;
+}
+
+.bookmark-bar input:focus {
+  border-color: var(--border-focus);
+  box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.22);
+}
+
+.saved-locations-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+
+.bookmark-chip {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  background: var(--bg-card-elevated);
+  border: 1px solid var(--border-subtle);
+  overflow: hidden;
+}
+
+.bookmark-chip-btn {
+  appearance: none;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  font-family: inherit;
+  font-size: 0.78rem;
+  padding: 0.35rem 0.65rem;
+  cursor: pointer;
+}
+
+.bookmark-chip-btn:hover {
+  color: var(--text-primary);
+  background: rgba(56, 189, 248, 0.12);
+}
+
+.bookmark-chip-del {
+  appearance: none;
+  border: none;
+  border-left: 1px solid var(--border-subtle);
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  line-height: 1;
+  padding: 0.35rem 0.55rem;
+  cursor: pointer;
+}
+
+.bookmark-chip-del:hover {
+  color: var(--accent-rose);
+  background: rgba(251, 113, 133, 0.12);
+}
+
+/* Interactive Solar Terminator World Map */
+.map-subtitle {
+  margin: 0.15rem 0 0;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.map-legend {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  font-size: 0.76rem;
+  color: var(--text-secondary);
+}
+
+.swatch-observer {
+  background: #38bdf8;
+  border-radius: 50%;
+}
+
+.swatch-subsolar {
+  background: #fde68a;
+  border: 1px solid #f59e0b;
+  border-radius: 50%;
+}
+
+.world-map-wrap {
+  width: 100%;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  border: 1px solid var(--border-subtle);
+  background: #0d1b38;
+}
+
+.world-map-svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  cursor: crosshair;
+  user-select: none;
+}
+
 /* Footer */
 .app-footer {
   max-width: 1120px;
