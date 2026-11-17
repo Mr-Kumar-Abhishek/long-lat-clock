@@ -48,27 +48,44 @@ The **GeoSolar Clock PWA** follows an **Iterative Agile SDLC** tailored for a ze
 
 ## 3. Agile Sprint Roadmap & Backlog
 
-| Sprint | Goal | Key Deliverables | Status | Commit |
+| Sprint | Goal | Key Deliverables | Status | Branch / Commit |
 | :--- | :--- | :--- | :--- | :--- |
-| **Sprint 0** | Foundation, License, SRS & Core PWA Boilerplate | `LICENSE`, `SRS.md`, `index.html`, `css/styles.css`, `js/solar.js`, `js/app.js`, `manifest.webmanifest`, `sw.js`, `icons/*` | Completed | `fa0fe0b`, `5206dc0` |
-| **Sprint 1** | Extended Astronomical & Twilight Precision Engine | Multi-threshold `computeHorizonCrossings` (Civil/Nautical/Astronomical twilight & Golden Hour), `classifySkyPhase`, Subsolar Zenith Point & Haversine distance, `dayProgressPercent`, `parseCoordinateInput` | Planned | — |
-| **Sprint 2** | Multi-Band Twilight Dial, Time-Travel Simulator & Twilight Schedule | Concentric twilight wedges on 24h SVG dial, Live vs. Simulation date/time scrubber & solstice/equinox presets, Twilight & Subsolar telemetry panel | Planned | — |
-| **Sprint 3** | Interactive Solar Terminator World Map, Saved Locations & URL Sharing | Click-to-set equirectangular SVG world map with live day/night terminator curve, subsolar & observer pins, `localStorage` location bookmarks, `?lat=&lon=&mode=` URL sharing | Planned | — |
-| **Sprint 4** | Automated QA Suite, PWA Cache v2 & Release Polish | `package.json`, `tests/solar.test.js` (`node --test`), `sw.js` cache bump (`geosolar-clock-v2`), updated `SDLC.md` & `README.md` | Planned | — |
+| **Sprint 0** | Foundation, License, SRS & Core PWA Boilerplate | `LICENSE`, `SRS.md`, `index.html`, `css/styles.css`, `js/solar.js`, `js/app.js`, `manifest.webmanifest`, `sw.js`, `icons/*` | Completed | `sprint-0/pwa-boilerplate` (`fa0fe0b`, `5206dc0`) |
+| **Sprint 1** | Extended Astronomical & Twilight Precision Engine | Multi-threshold `computeHorizonCrossings` (Civil/Nautical/Astronomical twilight & Golden Hour), `classifySkyPhase`, Subsolar Zenith Point & Haversine distance, `dayProgressPercent`, `parseCoordinateInput` | Completed | `sprint-1/solar-twilight-engine` (`ab81fd0`) |
+| **Sprint 2** | Multi-Band Twilight Dial, Time-Travel Simulator & Twilight Schedule | Concentric twilight wedges on 24h SVG dial, Live vs. Simulation date/time scrubber & solstice/equinox presets, Twilight & Subsolar telemetry panel | Completed | `sprint-2/twilight-dial-simulator` (`1c14150`) |
+| **Sprint 3** | Interactive Solar Terminator World Map, Saved Locations & URL Sharing | Click-to-set equirectangular SVG world map with live day/night terminator curve, subsolar & observer pins, `localStorage` location bookmarks, `?lat=&lon=&mode=` URL sharing | Completed | `sprint-3/terminator-map-bookmarks` (`0f4bc32`) |
+| **Sprint 4** | Automated QA Suite, PWA Cache v2 & Release Polish | `package.json`, `tests/solar.test.js` (`node --test`), `.nojekyll`, `sw.js` cache bump (`geosolar-clock-v2`), updated `SDLC.md` & `README.md` | Completed | `sprint-4/qa-tests-release` |
 
 ---
 
-## 4. Definition of Done (DoD) & Commit Convention
+## 4. Git Branching & GitHub Pages Strategy
+
+The repository enforces a structured Agile branching topology across local and `origin` (`Mr-Kumar-Abhishek/long-lat-clock`):
+
+| Branch | Purpose | Deployment / Integration Rule |
+| :--- | :--- | :--- |
+| **`master`** | Production mainline | Always holds release-ready, tested sprint merges (`--no-ff`). |
+| **`develop`** | Agile sprint integration branch | Synced with verified sprint milestones prior to release promotion. |
+| **`sprint-0/pwa-boilerplate`** | Sprint 0 milestone branch | Foundation, MIT License, `SRS.md`, and PWA shell. |
+| **`sprint-1/solar-twilight-engine`** | Sprint 1 milestone branch | Astronomical twilight & subsolar math engine (`js/solar.js`). |
+| **`sprint-2/twilight-dial-simulator`** | Sprint 2 milestone branch | Multi-band twilight SVG dial & Time-Travel Simulator. |
+| **`sprint-3/terminator-map-bookmarks`** | Sprint 3 milestone branch | Interactive Solar Terminator World Map, bookmarks & share links. |
+| **`sprint-4/qa-tests-release`** | Sprint 4 milestone branch | `node --test` QA suite, `geosolar-clock-v2` SW cache, `.nojekyll`, release docs. |
+| **`gh-pages`** | GitHub Pages deployment branch | Static PWA hosting root (`https://mr-kumar-abhishek.github.io/long-lat-clock/`), updated from verified `master`. |
+
+---
+
+## 5. Definition of Done (DoD) & Commit Convention
 
 A sprint is considered **Done** only when:
 1. All backlog items for the sprint are implemented cleanly with no duplicated logic or dead code.
-2. JavaScript modules pass `node --check` and sprint verification assertions pass without warnings or errors.
+2. JavaScript modules pass `node --check` and the automated `node --test` suite passes without errors.
 3. PWA offline cache lists (`sw.js`) stay synchronized with project assets.
-4. Changes are committed using Conventional Commits (`docs(...)`, `feat(sprint-N): ...`, `test(sprint-N): ...`) and pushed to `origin/master`.
+4. Changes are committed on their sprint branch (`docs(...)`, `feat(sprint-N): ...`, `test(sprint-N): ...`), merged cleanly into `master`, and pushed to `origin` alongside `develop` and `gh-pages`.
 
 ---
 
-## 5. Requirement Traceability Matrix (RTM)
+## 6. Requirement Traceability Matrix (RTM)
 
 | SRS Requirement | Description | Sprint(s) | Implementation Artifact(s) | Verification Method |
 | :--- | :--- | :--- | :--- | :--- |
