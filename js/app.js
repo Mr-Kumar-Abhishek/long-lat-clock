@@ -13,8 +13,11 @@ import {
 } from './solar.js';
 
 const STORAGE_KEY = 'geosolar-clock-settings-v1';
+const BOOKMARKS_STORAGE_KEY = 'geosolar-saved-locations-v1';
 const DIAL_CENTER = 180;
 const DIAL_RADIUS = 136;
+const MAP_WIDTH = 720;
+const MAP_HEIGHT = 360;
 const SVG_NS = 'http://www.w3.org/2000/svg';
 
 const DEFAULT_STATE = {
@@ -30,7 +33,9 @@ const appState = {
   simMinutes: getUtcMinutesOfDay(new Date()),
 };
 
+let savedLocations = loadBookmarks();
 let deferredInstallPrompt = null;
+let isMapDragging = false;
 
 const el = {
   swStatus: document.getElementById('sw-status'),
@@ -100,6 +105,16 @@ const el = {
   twilightGolden: document.getElementById('twilight-golden'),
   subsolarCoords: document.getElementById('subsolar-coords'),
   subsolarDistance: document.getElementById('subsolar-distance'),
+
+  bookmarkNameInput: document.getElementById('bookmark-name-input'),
+  saveLocationBtn: document.getElementById('save-location-btn'),
+  shareLinkBtn: document.getElementById('share-link-btn'),
+  savedLocationsList: document.getElementById('saved-locations-list'),
+
+  worldMapSvg: document.getElementById('world-map-svg'),
+  mapNightPolygon: document.getElementById('map-night-polygon'),
+  mapSubsolarMarker: document.getElementById('map-subsolar-marker'),
+  mapObserverPin: document.getElementById('map-observer-pin'),
 };
 
 function toUtcDateString(date) {
@@ -147,6 +162,56 @@ function saveSettings() {
     );
   } catch {
     // Ignore storage quota or private mode failures
+  }
+}
+
+function loadBookmarks() {
+  try {
+    const raw = localStorage.getItem(BOOKMARKS_STORAGE_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter(
+      (b) =>
+        b &&
+        typeof b.label === 'string' &&
+        Number.isFinite(Number(b.lat)) &&
+        Number.isFinite(Number(b.lon))
+    );
+  } catch {
+    return [];
+  }
+}
+
+function saveBookmarks() {
+  try {
+    localStorage.setItem(BOOKMARKS_STORAGE_KEY, JSON.stringify(savedLocations));
+  } catch {
+    // Ignore storage errors
+  }
+}
+
+function applyQueryParams() {
+  try {
+    const params = new URLSearchParams(window.location.search);
+    const latRaw = params.get('lat');
+    const lonRaw = params.get('lon');
+    const modeRaw = params.get('mode');
+
+    if (latRaw !== null && lonRaw !== null) {
+      const latParsed = parseCoordinateInput(latRaw, true);
+      const lonParsed = parseCoordinateInput(lonRaw, false);
+      if (latParsed.valid && lonParsed.valid) {
+        appState.lat = clamp(latParsed.value, -90, 90);
+        appState.lon = normalizeLongitude(lonParsed.value);
+      }
+    }
+    if (modeRaw === 'LMT' || modeRaw === 'AST') {
+      appState.timeMode = modeRaw;
+    }
+    saveSettings();
+  } catch {
+    // Ignore malformed URL parameters
   }
 }
 
@@ -463,7 +528,136 @@ function renderTick() {
   el.daylightProgressBar.style.width = pctText;
 
   updateDial(solar);
+  updateWorldMap(solar);
   requestAnimationFrame(renderTick);
+}
+
+function mapLatLonToSvg(lat, lon) {
+  return {
+    x: (normalizeLongitude(lon) + 180) * (MAP_WIDTH / 360),
+    y: (90 - clamp(lat, -90, 90)) * (MAP_HEIGHT / 180),
+  };
+}
+
+function updateWorldMap(solar) {
+  if (!el.worldMapSvg) return;
+
+  const obs = mapLatLonToSvg(solar.lat, solar.lon);
+  el.mapObserverPin.setAttribute('transform', `translate(${obs.x.toFixed(2)}, ${obs.y.toFixed(2)})`);
+
+  const sub = mapLatLonToSvg(solar.subsolarLat, solar.subsolarLon);
+  el.mapSubsolarMarker.setAttribute('transform', `translate(${sub.x.toFixed(2)}, ${sub.y.toFixed(2)})`);
+
+  // Compute solar terminator curve phi = atan(-cos(lon - subsolarLon) / tan(declination))
+  const decRad = (solar.declinationDeg * Math.PI) / 180;
+  const safeDecRad = Math.abs(decRad) < 1e-4 ? (decRad >= 0 ? 1e-4 : -1e-4) : decRad;
+  const tanDec = Math.tan(safeDecRad);
+
+  const points = [];
+  for (let lon = -180; lon <= 180; lon += 4) {
+    const omegaRad = ((lon - solar.subsolarLon) * Math.PI) / 180;
+    const termLatDeg = Math.atan(-Math.cos(omegaRad) / tanDec) * (180 / Math.PI);
+    const pt = mapLatLonToSvg(termLatDeg, lon);
+    points.push(`${pt.x.toFixed(1)},${pt.y.toFixed(1)}`);
+  }
+
+  // Close night polygon across whichever pole is currently in winter darkness
+  if (safeDecRad >= 0) {
+    points.push(`${MAP_WIDTH},${MAP_HEIGHT}`, `0,${MAP_HEIGHT}`);
+  } else {
+    points.push(`${MAP_WIDTH},0`, '0,0');
+  }
+
+  el.mapNightPolygon.setAttribute('points', points.join(' '));
+}
+
+function updateCoordsFromMapPointer(event) {
+  if (!el.worldMapSvg) return;
+  const rect = el.worldMapSvg.getBoundingClientRect();
+  if (!rect.width || !rect.height) return;
+
+  const relX = clamp((event.clientX - rect.left) / rect.width, 0, 1);
+  const relY = clamp((event.clientY - rect.top) / rect.height, 0, 1);
+  const lon = relX * 360 - 180;
+  const lat = 90 - relY * 180;
+
+  applyCoordinates(lat, lon, 'Coordinates updated from Solar Terminator Map.');
+}
+
+function renderBookmarks() {
+  if (!el.savedLocationsList) return;
+  el.savedLocationsList.replaceChildren();
+
+  savedLocations.forEach((loc, index) => {
+    const chip = document.createElement('div');
+    chip.className = 'bookmark-chip';
+
+    const loadBtn = document.createElement('button');
+    loadBtn.type = 'button';
+    loadBtn.className = 'bookmark-chip-btn';
+    loadBtn.textContent = `${loc.label} (${loc.lat.toFixed(2)}°, ${loc.lon.toFixed(2)}°)`;
+    loadBtn.addEventListener('click', () => {
+      applyCoordinates(loc.lat, loc.lon, `Loaded saved location: ${loc.label}.`);
+    });
+
+    const delBtn = document.createElement('button');
+    delBtn.type = 'button';
+    delBtn.className = 'bookmark-chip-del';
+    delBtn.setAttribute('aria-label', `Remove ${loc.label}`);
+    delBtn.textContent = '×';
+    delBtn.addEventListener('click', () => {
+      savedLocations.splice(index, 1);
+      saveBookmarks();
+      renderBookmarks();
+      setGeoStatus(`Removed bookmark "${loc.label}".`);
+    });
+
+    chip.append(loadBtn, delBtn);
+    el.savedLocationsList.appendChild(chip);
+  });
+}
+
+function addCurrentBookmark() {
+  const customLabel = el.bookmarkNameInput.value.trim();
+  const label = customLabel || `${formatDMS(appState.lat, true)} · ${formatDMS(appState.lon, false)}`;
+  const entry = {
+    label,
+    lat: Number(appState.lat.toFixed(4)),
+    lon: Number(appState.lon.toFixed(4)),
+  };
+
+  const existingIdx = savedLocations.findIndex((b) => b.label.toLowerCase() === label.toLowerCase());
+  if (existingIdx >= 0) {
+    savedLocations[existingIdx] = entry;
+  } else {
+    savedLocations.unshift(entry);
+  }
+
+  el.bookmarkNameInput.value = '';
+  saveBookmarks();
+  renderBookmarks();
+  setGeoStatus(`Saved location "${label}" locally.`, 'success');
+}
+
+async function copyShareLink() {
+  const url = new URL(window.location.href);
+  url.search = '';
+  url.searchParams.set('lat', appState.lat.toFixed(4));
+  url.searchParams.set('lon', appState.lon.toFixed(4));
+  url.searchParams.set('mode', appState.timeMode);
+  const shareUrl = url.toString();
+
+  try {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      await navigator.clipboard.writeText(shareUrl);
+    } else {
+      throw new Error('Clipboard API unavailable');
+    }
+    setGeoStatus('Shareable coordinate link copied to clipboard!', 'success');
+  } catch {
+    window.history.replaceState(null, '', shareUrl);
+    setGeoStatus(`Updated browser URL for sharing: ?${url.searchParams.toString()}`, 'success');
+  }
 }
 
 function applyCoordinates(lat, lon, sourceMessage = '') {
@@ -646,13 +840,34 @@ function bindEvents() {
   el.lonInput.addEventListener('change', () => handleManualInput(true));
 
   el.gpsBtn.addEventListener('click', handleGpsRequest);
+  el.saveLocationBtn.addEventListener('click', addCurrentBookmark);
+  el.shareLinkBtn.addEventListener('click', copyShareLink);
+
+  if (el.worldMapSvg) {
+    el.worldMapSvg.addEventListener('pointerdown', (event) => {
+      isMapDragging = true;
+      el.worldMapSvg.setPointerCapture(event.pointerId);
+      updateCoordsFromMapPointer(event);
+    });
+    el.worldMapSvg.addEventListener('pointermove', (event) => {
+      if (isMapDragging) updateCoordsFromMapPointer(event);
+    });
+    el.worldMapSvg.addEventListener('pointerup', () => {
+      isMapDragging = false;
+    });
+    el.worldMapSvg.addEventListener('pointercancel', () => {
+      isMapDragging = false;
+    });
+  }
 }
 
 function init() {
+  applyQueryParams();
   buildDialTicks();
   syncModeUI();
   syncSimulatorUI();
   syncCoordinateInputs(true);
+  renderBookmarks();
   bindEvents();
   initPwa();
   requestAnimationFrame(renderTick);

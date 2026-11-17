@@ -225,7 +225,86 @@
         </div>
       </div>
 
+      <div class="bookmark-bar">
+        <input id="bookmark-name-input" type="text" maxlength="40" placeholder="Bookmark label (e.g. Home, Observatory)" aria-label="Bookmark location label" />
+        <button id="save-location-btn" class="btn" type="button">Save Location</button>
+        <button id="share-link-btn" class="btn" type="button">Copy Share Link</button>
+      </div>
+
+      <div id="saved-locations-list" class="saved-locations-list" aria-label="Saved Locations"></div>
+
       <p id="geo-status" class="geo-status" aria-live="polite"></p>
+    </section>
+
+    <!-- Interactive Solar Terminator World Map -->
+    <section class="panel map-panel" aria-label="Solar Terminator World Map">
+      <div class="controls-header">
+        <div>
+          <h2 class="section-title">Solar Terminator &amp; Subsolar Map</h2>
+          <p class="map-subtitle">Click anywhere on the globe to inspect solar time at that coordinate</p>
+        </div>
+        <div class="map-legend">
+          <span class="legend-item"><span class="legend-swatch swatch-observer"></span>Observer</span>
+          <span class="legend-item"><span class="legend-swatch swatch-subsolar"></span>Subsolar Zenith</span>
+        </div>
+      </div>
+
+      <div class="world-map-wrap">
+        <svg id="world-map-svg" class="world-map-svg" viewBox="0 0 720 360" role="img" aria-label="Equirectangular world map with live day-night solar terminator">
+          <rect width="720" height="360" fill="#0d1b38" />
+
+          <!-- Stylized Continental Landmasses (Equirectangular x=(lon+180)*2, y=(90-lat)*2) -->
+          <g id="map-continents" fill="#1e293b" stroke="rgba(148, 163, 184, 0.35)" stroke-width="0.9">
+            <!-- North America -->
+            <path d="M 24 48 L 60 40 L 100 40 L 170 40 L 200 54 L 240 76 L 250 86 L 224 92 L 208 110 L 198 130 L 182 122 L 166 128 L 180 138 L 194 160 L 204 164 L 176 150 L 150 140 L 126 116 L 112 100 L 110 82 L 80 60 L 36 70 Z" />
+            <!-- Greenland -->
+            <path d="M 250 60 L 260 40 L 230 18 L 310 16 L 324 30 L 290 48 L 272 60 Z" />
+            <!-- South America -->
+            <path d="M 204 162 L 216 156 L 240 164 L 260 178 L 290 192 L 282 210 L 264 232 L 244 256 L 226 290 L 212 286 L 216 250 L 218 216 L 198 190 L 202 176 Z" />
+            <!-- Africa -->
+            <path d="M 326 150 L 348 108 L 380 106 L 424 118 L 446 156 L 462 156 L 440 190 L 430 220 L 416 246 L 396 250 L 388 224 L 384 192 L 378 172 L 344 170 L 330 158 Z" />
+            <!-- Europe -->
+            <path d="M 342 106 L 342 94 L 356 92 L 350 84 L 364 78 L 376 70 L 370 58 L 396 42 L 420 40 L 444 44 L 476 42 L 480 70 L 440 90 L 418 98 L 406 104 L 392 104 L 384 92 L 368 94 L 350 108 Z" />
+            <!-- UK -->
+            <path d="M 348 80 L 350 64 L 362 74 Z" />
+            <!-- Asia -->
+            <path d="M 416 98 L 444 96 L 480 70 L 476 42 L 510 34 L 570 26 L 640 34 L 716 48 L 684 70 L 644 72 L 624 94 L 612 110 L 602 118 L 588 136 L 576 148 L 568 176 L 558 152 L 552 146 L 538 136 L 516 164 L 504 138 L 482 130 L 470 128 L 478 136 L 448 154 L 430 124 L 428 108 Z" />
+            <!-- Japan -->
+            <path d="M 620 116 L 642 98 L 650 90 L 638 110 Z" />
+            <!-- Australia -->
+            <path d="M 588 224 L 618 208 L 632 204 L 646 202 L 666 232 L 660 254 L 642 256 L 620 244 L 590 248 L 586 232 Z" />
+            <!-- Antarctica -->
+            <path d="M 0 324 L 240 308 L 270 330 L 360 320 L 540 316 L 700 324 L 720 324 L 720 360 L 0 360 Z" />
+          </g>
+
+          <!-- Latitude / Longitude Reference Graticules -->
+          <g stroke="rgba(148, 163, 184, 0.16)" stroke-width="0.7" fill="none">
+            <line x1="0" y1="180" x2="720" y2="180" stroke="rgba(56, 189, 248, 0.35)" stroke-dasharray="4 4" />
+            <line x1="360" y1="0" x2="360" y2="360" stroke="rgba(56, 189, 248, 0.35)" stroke-dasharray="4 4" />
+            <line x1="0" y1="133.12" x2="720" y2="133.12" stroke-dasharray="3 5" />
+            <line x1="0" y1="226.88" x2="720" y2="226.88" stroke-dasharray="3 5" />
+            <line x1="0" y1="46.88" x2="720" y2="46.88" stroke-dasharray="3 5" />
+            <line x1="0" y1="313.12" x2="720" y2="313.12" stroke-dasharray="3 5" />
+            <line x1="180" y1="0" x2="180" y2="360" />
+            <line x1="540" y1="0" x2="540" y2="360" />
+          </g>
+
+          <!-- Live Solar Night / Terminator Overlay -->
+          <polygon id="map-night-polygon" points="" fill="rgba(2, 6, 23, 0.62)" stroke="rgba(251, 191, 36, 0.65)" stroke-width="1.5" />
+
+          <!-- Subsolar Sun Marker -->
+          <g id="map-subsolar-marker" transform="translate(360, 180)">
+            <circle r="13" fill="rgba(245, 158, 11, 0.25)" />
+            <circle r="6" fill="#fde68a" stroke="#f59e0b" stroke-width="2" />
+          </g>
+
+          <!-- Observer Crosshair Pin -->
+          <g id="map-observer-pin" transform="translate(514.4, 122.8)">
+            <circle r="10" fill="rgba(56, 189, 248, 0.22)" stroke="#38bdf8" stroke-width="1.5" />
+            <circle r="3.5" fill="#f8fafc" />
+          </g>
+        </svg>
+      </div>
     </section>
 
     <!-- Solar Telemetry Cards -->
